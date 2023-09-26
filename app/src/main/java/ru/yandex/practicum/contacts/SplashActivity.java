@@ -33,7 +33,7 @@ public class SplashActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         binding = SplashActivityBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-        binding.settingsButton.setOnClickListener(view -> navigateToSettings());
+        binding.settingsButton.setOnClickListener(v -> navigateToSettings());
 
         if (ContextUtils.hasContactPermissions(this)) {
             navigateToMain();

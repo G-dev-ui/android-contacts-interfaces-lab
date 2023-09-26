@@ -7,7 +7,10 @@ import android.text.TextWatcher;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.Toast;
+
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.google.android.material.badge.BadgeDrawable;
 import com.google.android.material.badge.BadgeUtils;
@@ -15,7 +18,6 @@ import com.google.android.material.badge.BadgeUtils;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 import ru.yandex.practicum.contacts.R;
@@ -27,19 +29,11 @@ import ru.yandex.practicum.contacts.presentation.sort.SortDialogFragment;
 import ru.yandex.practicum.contacts.presentation.sort.model.SortType;
 import ru.yandex.practicum.contacts.ui.widget.DividerItemDecoration;
 import ru.yandex.practicum.contacts.utils.android.Debouncer;
+import ru.yandex.practicum.contacts.utils.android.OnDebounceListener;
 import ru.yandex.practicum.contacts.utils.widget.EditTextUtils;
 
-import androidx.annotation.IdRes;
-import androidx.annotation.StringRes;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
-import androidx.lifecycle.ViewModelProvider;
-
 @SuppressLint("UnsafeExperimentalUsageError")
-public class MainActivity extends AppCompatActivity {
-
-    public static final String SORT_TAG = "SORT_TAG";
-    public static final String FILTER_TAG = "FILTER_TAG";
+public class MainActivity extends AppCompatActivity  implements OnDebounceListener {
 
     private ActivityMainBinding binding;
     private MainViewModel viewModel;
@@ -65,7 +59,7 @@ public class MainActivity extends AppCompatActivity {
 
         viewModel = new ViewModelProvider(this).get(MainViewModel.class);
         viewModel.getContactsLiveDate().observe(this, this::updateContacts);
-        viewModel.getUiStateLiveDate().observe(this, this::updateUiState);
+        binding.searchLayout.resetButton.setOnClickListener(v -> clearSearch());
 
         createBadges();
         bindSearch();
@@ -85,7 +79,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void bindSearch() {
-        final Debouncer debouncer = new Debouncer(viewModel);
+        final Debouncer debouncer = new Debouncer(this);
         binding.searchLayout.searchText.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -128,14 +122,6 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    private void showSortDialog(SortType sortType) {
-        SortDialogFragment.newInstance(sortType).show(getSupportFragmentManager(), SORT_TAG);
-    }
-
-    private void showFilterContactTypeDialog(Set<ContactType> contactTypes) {
-        FilterContactTypeDialogFragment.newInstance(contactTypes).show(getSupportFragmentManager(), FILTER_TAG);
-    }
-
     @Override
     public void onBackPressed() {
         viewModel.onBackPressed();
@@ -149,44 +135,6 @@ public class MainActivity extends AppCompatActivity {
         } else {
             binding.recycler.setVisibility(View.GONE);
             binding.nothingFound.setVisibility(View.VISIBLE);
-        }
-    }
-
-    private void updateUiState(MainViewModel.UiState uiState) {
-        final Boolean finishActivity = uiState.actions.finishActivity.data;
-        if (finishActivity != null && finishActivity) {
-            finish();
-            return;
-        }
-        binding.searchLayout.getRoot().setVisibility(uiState.searchVisibility ? View.VISIBLE : View.GONE);
-        binding.searchLayout.resetButton.setVisibility(uiState.resetSearchButtonVisibility ? View.VISIBLE : View.GONE);
-        if (uiState.actions.showSortTypeDialog.data != null) {
-            showSortDialog(uiState.actions.showSortTypeDialog.data);
-        }
-        final Set<ContactType> filterContactTypes = uiState.actions.showFilterContactTypeDialog.data;
-        if (filterContactTypes != null && filterContactTypes.size() > 0) {
-            showFilterContactTypeDialog(filterContactTypes);
-        }
-        updateBadges(uiState);
-    }
-
-    private void updateBadges(MainViewModel.UiState uiState) {
-        updateBadge(uiState.menuBadges.sort, R.id.menu_sort);
-        updateBadge(uiState.menuBadges.filter, R.id.menu_filter);
-        updateBadge(uiState.menuBadges.search, R.id.menu_search);
-    }
-
-    private void updateBadge(MainViewModel.UiState.MenuBadge badge, @IdRes int menuItemId) {
-        final BadgeDrawable drawable = Objects.requireNonNull(badges.get(menuItemId));
-        if (badge != null) {
-            drawable.setVisible(true);
-            if (badge.value > 0) {
-                drawable.setNumber(badge.value);
-            } else {
-                drawable.clearNumber();
-            }
-        } else {
-            drawable.setVisible(false);
         }
     }
 
@@ -211,6 +159,11 @@ public class MainActivity extends AppCompatActivity {
 
     private void clearSearch() {
         binding.searchLayout.searchText.setText("");
+        viewModel.search();
+    }
+
+    @Override
+    public void onDebounce() {
         viewModel.search();
     }
 }
